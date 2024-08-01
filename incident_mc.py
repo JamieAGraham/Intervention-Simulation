@@ -58,22 +58,23 @@ def estimate_incidents(df, weekday, start_time, duration, monte_carlo=False):
   else:
     return total_incidents
 
-# Read the CSV file into a DataFrame
-df = pd.read_csv('Incident Generation.csv')
+if __name__ == "__main__":
+  # Read the CSV file into a DataFrame, filename here example version
+  df = pd.read_csv('Incident Generation Example.csv')
 
-# Test cases
-test_cases = [
-  ("Monday", datetime.datetime(year=2023, month=1, day=1, hour=9, minute=30), datetime.timedelta(minutes=120), False),  # Expected value
-  ("Monday", datetime.datetime(year=2023, month=1, day=1, hour=9, minute=30), datetime.timedelta(minutes=120), True),   # Monte Carlo sample
-  ("Friday", datetime.datetime(year=2023, month=1, day=5, hour=23, minute=45), datetime.timedelta(minutes=90), False),
-  ("Friday", datetime.datetime(year=2023, month=1, day=5, hour=23, minute=45), datetime.timedelta(minutes=90), True),
-  ("Saturday", datetime.datetime(year=2023, month=1, day=6, hour=22, minute=0), datetime.timedelta(minutes=180), False),
-  ("Saturday", datetime.datetime(year=2023, month=1, day=6, hour=22, minute=0), datetime.timedelta(minutes=180), True)
-]
+  # Test cases
+  test_cases = [
+    ("Monday", datetime.datetime(year=2023, month=1, day=1, hour=9, minute=30), datetime.timedelta(minutes=120), False),  # Expected value
+    ("Monday", datetime.datetime(year=2023, month=1, day=1, hour=9, minute=30), datetime.timedelta(minutes=120), True),   # Monte Carlo sample
+    ("Friday", datetime.datetime(year=2023, month=1, day=5, hour=23, minute=45), datetime.timedelta(minutes=90), False),
+    ("Friday", datetime.datetime(year=2023, month=1, day=5, hour=23, minute=45), datetime.timedelta(minutes=90), True),
+    ("Saturday", datetime.datetime(year=2023, month=1, day=6, hour=22, minute=0), datetime.timedelta(minutes=180), False),
+    ("Saturday", datetime.datetime(year=2023, month=1, day=6, hour=22, minute=0), datetime.timedelta(minutes=180), True)
+  ]
 
-for weekday, start_time, duration, monte_carlo in test_cases:
-  estimated_incidents = estimate_incidents(df, weekday, start_time, duration, monte_carlo)
-  if monte_carlo:
-    print(f"Monte Carlo sample of incidents for {weekday}, starting at {start_time}, duration {duration}: {estimated_incidents}")
-  else:
-    print(f"Estimated incidents for {weekday}, starting at {start_time}, duration {duration}: {estimated_incidents:.2f}")
+  for weekday, start_time, duration, monte_carlo in test_cases:
+    estimated_incidents = estimate_incidents(df, weekday, start_time, duration, monte_carlo)
+    if monte_carlo:
+      print(f"Monte Carlo sample of incidents for {weekday}, starting at {start_time}, duration {duration}: {estimated_incidents}")
+    else:
+      print(f"Estimated incidents for {weekday}, starting at {start_time}, duration {duration}: {estimated_incidents:.2f}")
