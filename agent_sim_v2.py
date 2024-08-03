@@ -4,6 +4,7 @@ import datetime
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List
+from shapely.geometry import Point, Polygon
 
 class IncidentType(Enum):
     IMMEDIATE = 1
@@ -108,22 +109,85 @@ class Officer:
     def is_on_duty(self, simulation_time: datetime.datetime) -> bool:
         return self.shift.start_time <= simulation_time.time() <= self.end_time.time()
 
+
+
+class PoliceStation:
+    def __init__(self, location: tuple, name: str, id: int, response_area: Polygon):
+        self.location = Point(location)
+        self.officers = []
+        self.name = name
+        self.id = id
+        self.response_area = response_area  
+
+    def add_officer(self, officer: Officer):
+        self.officers.append(officer)
+        officer.station = self
+
+    # Remove get_available_officers, assign_officer_to_incident, and is_incident_in_response_area
+
+    def get_officers(self) -> list[Officer]:
+        """Returns all officers associated with the station."""
+        return self.officers
+
+
 @dataclass
-class IncidentManager:
+class ForceControlRoom:
+    stations: List[PoliceStation]
     incidents: List[Incident] = field(default_factory=list)
-    next_incident_id: int = 1
 
     def add_incident(self, incident: Incident):
-        incident.id = self.next_incident_id
         self.incidents.append(incident)
-        self.next_incident_id += 1
+        self.assign_incident(incident)  # Immediately try to assign
 
+    def find_responsible_station(self, location: Point) -> PoliceStation:
+        for station in self.stations:
+            if station.response_area.contains(location):
+                return station
+        logging.error(f"No responsible station found for incident at {location}")
+        return None  # Or handle this case differently (e.g., assign to a default station)
+
+    def get_available_officers(self, station: PoliceStation) -> List[Officer]:
+        return [
+            officer
+            for officer in station.get_officers()
+            if officer.assigned_incident is None and officer.is_on_duty()
+        ]
+
+    def find_closest_station(self, location: Point, num_stations=2) -> List[PoliceStation]:
+        sorted_stations = sorted(self.stations, key=lambda s: s.location.distance(location))
+        return sorted_stations[:num_stations]
+
+    def assign_incident(self, incident: Incident):
+        """
+        Main incident assignment logic. You can customize this extensively.
+        """
+        responsible_station = self.find_responsible_station(incident.location)
+
+        if responsible_station:
+            if responsible_station.assign_officer_to_incident(incident):
+                return  # Assignment successful at primary station
+
+            # If no officers available at the responsible station, try nearby stations
+            nearby_stations = self.find_closest_station(incident.location, num_stations=2)
+            for station in nearby_stations:
+                if station != responsible_station and station.assign_officer_to_incident(incident):
+                    return  # Assignment successful at a nearby station
+        
+        # If still no assignment, log an error or take other action
+        logging.error(f"No available officers for incident {incident.id} in any nearby station.") 
+
+    def get_incident_by_id(self, incident_id: int) -> Incident:
+        for incident in self.incidents:
+            if incident.id == incident_id:
+                return incident
+        return None
+    
     def get_unattended_incidents(self) -> List[Incident]:
         return [incident for incident in self.incidents if incident.status != IncidentStatus.ATTENDED]
 
     def sort_by_priority_and_time(self, incidents: List[Incident]) -> List[Incident]:
         """Sorts incidents by priority (descending) and then by time of occurrence (ascending)."""
-        return sorted(incidents, key=lambda incident: (-incident.priority, incident.time_of_occurrence))
+        return sorted(incidents, key=lambda incident: (-incident.priority, incident.report_time))
 
     def get_highest_priority_incident(self, incidents: List[Incident], current_time: datetime.datetime) -> Incident:
         """Returns the highest priority unattended incident, considering time since creation."""
@@ -136,13 +200,6 @@ class IncidentManager:
     def gen_isr(self, incident: Incident) -> str:
         """Generates a unique ISR (Incident Serial Reference) for the incident."""
         # Assuming you have a function to format dates and times as strings:
-        date_str = incident.time_of_occurrence.strftime("%Y%m%d")  
-        time_str = incident.time_of_occurrence.strftime("%H%M")
+        date_str = incident.report_time.strftime("%Y%m%d")  
+        time_str = incident.report_time.strftime("%H%M")
         return f"{date_str}/{time_str}/{incident.id:04d}"  # Format: YYYYMMDD/HHMM/0001
-
-    def get_incident_by_id(self, incident_id: int) -> Incident:
-        """Retrieves an incident by its ID."""
-        for incident in self.incidents:
-            if incident.id == incident_id:
-                return incident
-        return None
