@@ -1,5 +1,6 @@
 import logging
 import numpy
+import os
 import datetime
 from dataclasses import dataclass, field
 from enum import Enum
@@ -11,7 +12,7 @@ class IncidentType(Enum):
     PROMPT = 2
     SCHEDULED = 3
     APPOINTMENT = 4
-    NO_RESPONSE = 0
+    NO_RESPONSE = 5
 
 class IncidentStatus(Enum):
     REPORTED = 1
@@ -81,13 +82,6 @@ class Incident:
     response_time: datetime.timedelta = field(init=False, default=None)
     isr: str = field(init=False, default="PENDING")
 
-    def gen_isr(self, uid) -> str:
-        """The input "uid" is a unique identifier which is generally an integer to 4 significant
-        figures generated serially from the first incident of the day having a uid of 1 onwards.
-        While this would pose problems if more than 9999 incidents occur in a day, the maximum
-        value experienced in this county is <2500."""
-        return "{}-{}-{:0>4}".format("HC", self.datetime.date, uid)
-
 @dataclass
 class Officer:
     id: int
@@ -125,13 +119,13 @@ class PoliceStation:
 
     # Remove get_available_officers, assign_officer_to_incident, and is_incident_in_response_area
 
-    def get_officers(self) -> list[Officer]:
+    def get_officers(self) -> List[Officer]:
         """Returns all officers associated with the station."""
         return self.officers
 
 
 @dataclass
-class ForceControlRoom:
+class FCR:
     stations: List[PoliceStation]
     incidents: List[Incident] = field(default_factory=list)
 
@@ -159,7 +153,7 @@ class ForceControlRoom:
 
     def assign_incident(self, incident: Incident):
         """
-        Main incident assignment logic. You can customize this extensively.
+        Main incident assignment logic. TO DO!
         """
         responsible_station = self.find_responsible_station(incident.location)
 
@@ -202,4 +196,30 @@ class ForceControlRoom:
         # Assuming you have a function to format dates and times as strings:
         date_str = incident.report_time.strftime("%Y%m%d")  
         time_str = incident.report_time.strftime("%H%M")
-        return f"{date_str}/{time_str}/{incident.id:04d}"  # Format: YYYYMMDD/HHMM/0001
+        incident_logger.info(f"Incident created ISR HC-{date_str}-{incident.id:04d} at {date_str}-{time_str}")
+        return f"HC-{date_str}-{incident.id:04d}"  # Format: YYYYMMDD/HHMM/0001
+
+if __name__ == "__main__":
+
+    # Create a logs directory if it doesn't exist
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Configure logging
+    log_filename = os.path.join(log_dir, f"simulation_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log")  # Unique log file name
+
+    logging.basicConfig(
+        filename=log_filename,  # Log to a file
+        level=logging.INFO,     # Set minimum level to INFO (or DEBUG for more detail)
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"  # Customize the format
+    )
+
+    # Get the root logger and add a handler for console output
+    console_handler = logging.StreamHandler()  # Send logs to the console as well
+    console_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(console_handler)
+
+    # Create loggers for different parts of your application
+    fcr_logger = logging.getLogger("FCR")
+    station_logger = logging.getLogger("PoliceStation")
+    incident_logger = logging.getLogger("Incident")
