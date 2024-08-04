@@ -20,44 +20,42 @@ class IncidentEstimator:
         Returns:
             float or int: The estimated or sampled number of incidents.
         """
-        # ... (rest of the estimation logic from your original function remains the same) ...
-
-
-        # Extract hour and minute from start_time
         start_hour = start_time.hour
         start_minute = start_time.minute
 
-        # Extract duration in minutes from timedelta object
         duration_minutes = duration.seconds // 60
 
-        # Calculate end_time, handling wrap-arounds for hours and minutes
         end_hour = (start_hour + (start_minute + duration_minutes) // 60) % 24
         end_minute = (start_minute + duration_minutes) % 60
         end_time = (end_hour, end_minute)
 
-        # Determine start and end days, handling wrap-arounds for days and weeks
-        weekdays = list(df.columns)[1:]
+        weekdays = list(self.df.columns)[1:]
         start_day_index = weekdays.index(weekday)
         end_day_index = (start_day_index + (end_hour < start_hour)) % 7
         end_day = weekdays[end_day_index]
 
-        # Get relevant rows from the DataFrame, handling wrap-arounds
-        relevant_rows = df[((df['Hr'] >= start_hour) | (df['Hr'] <= end_hour)) & (df['Hr'] != 24)].copy()
+        # Select correct rows based on start and end hour, accounting for wrap-around
+        if start_hour < end_hour:  # Duration doesn't cross midnight
+            relevant_rows = self.df[(self.df['Hr'] >= start_hour) & (self.df['Hr'] < end_hour)].copy()
+        else:  # Duration crosses midnight
+            relevant_rows = self.df[(self.df['Hr'] >= start_hour) | (self.df['Hr'] < end_hour)].copy()
+        
 
         # If no relevant rows are found, return 0
         if relevant_rows.empty:
-          return 0
+            return 0
+        
 
         # Interpolate incident rates for partial hours
         for day in [weekday, end_day]:
-          if (day == weekday and start_minute != 0) or (day == end_day and end_minute != 0):
-            x = relevant_rows['Hr']
-            y = relevant_rows[day]
-            f = interp1d(x, y, kind='linear', fill_value='extrapolate')
-            if day == weekday:
-              relevant_rows.loc[relevant_rows['Hr'] == start_hour, day] = f(start_hour + start_minute / 60)
-            else:
-              relevant_rows.loc[relevant_rows['Hr'] == end_hour, day] = f(end_hour + end_minute / 60)
+            if (day == weekday and start_minute != 0) or (day == end_day and end_minute != 0):
+                x = relevant_rows['Hr']
+                y = relevant_rows[day]
+                f = interp1d(x, y, kind='linear', fill_value='extrapolate')
+                if day == weekday:
+                    relevant_rows.loc[relevant_rows['Hr'] == start_hour, day] = f(start_hour + start_minute / 60)
+                else:
+                    relevant_rows.loc[relevant_rows['Hr'] == end_hour, day] = f(end_hour + end_minute / 60)
 
         # Calculate total incidents, accounting for duration and wrap-arounds
         total_incidents = 0
@@ -71,14 +69,10 @@ class IncidentEstimator:
             elif start_hour > end_hour and (row['Hr'] > start_hour or row['Hr'] < end_hour):  # Full hours across midnight
                 total_incidents += row[weekday]  # Add full hour without scaling
 
-
-        # Adjust for the duration if it spans multiple hours
-        total_incidents *= duration_minutes / 60
-
         if monte_carlo:
-          return np.random.poisson(total_incidents)
+            return np.random.poisson(total_incidents)
         else:
-          return total_incidents
+            return total_incidents
 
 if __name__ == "__main__":
   # Read the CSV file into a DataFrame, filename here example version
