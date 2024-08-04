@@ -2,13 +2,16 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 import datetime
+from typing import Union
 
 class IncidentEstimator:
-    def __init__(self, csv_file_path):
+    def __init__(self, csv_file_path: str) -> None:
         """Initialize the class by loading the CSV data."""
         self.df = pd.read_csv(csv_file_path)
 
-    def estimate_incidents(self, weekday, start_time, duration, monte_carlo=False):
+    def estimate_incidents(self, weekday: str, start_time: datetime.datetime, 
+                            duration: datetime.timedelta, monte_carlo: bool = False) -> Union[float, int]:
+
         """Estimate the number of incidents for the given parameters.
 
         Args:
