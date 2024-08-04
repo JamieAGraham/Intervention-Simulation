@@ -2,7 +2,7 @@ import geopandas as gpd
 import pandas as pd
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
-from travel_time_calculation import TravelTimeCalculator
+from travel_time_calc import TravelTimeCalculator
 import numpy as np
 
 points_gdf = gpd.read_file("Geofiles/sampled_points_proportional.shp").to_crs("EPSG:4326")
