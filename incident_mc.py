@@ -81,10 +81,6 @@ if __name__ == "__main__":
   # Read the CSV file into a DataFrame, filename here example version
   df = pd.read_csv('Incident Generation Example.csv')
 
-  # Test cases
-
-
-    # Example usage in another script:
   estimator = IncidentEstimator('Incident Generation Example.csv')  # Replace with actual file path
 
   test_cases = [
