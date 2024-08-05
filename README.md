@@ -71,7 +71,16 @@ This Python project simulates police responses to incidents using an agent-based
 *   shapely
 *   geopandas
 
+## Planned Features
 
+- [ ] Core simulation logic loop, simulating the "FCR" (dispatcher) class behaviour.
+- [ ] Implement patrol logic beyond return to base.
+- [ ] Add user-controllable or stochastic "not ready time" to benchmark to reality.
+- [ ] Implement dynamic events (e.g., traffic accidents, major incidents).
+- [ ] Add support for more incident types and severity levels.
+- [ ] Introduce resource management with different officer types and allocation strategies.
+- [ ] Develop a visualization component for real-time / restrospective simulation display.
+- [ ] Performance optimisation; Specifically in travel time calculation and incident generation.
 
 ## Contributing
 
