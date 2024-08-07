@@ -190,14 +190,20 @@ class Incident:
         location (tuple): The geographic location of the incident (latitude, longitude).
         report_time (datetime.datetime): The time the incident was reported.
         status (IncidentStatus): The current status of the incident (default: REPORTED).
-        response_time (datetime.timedelta): The time it took for officers to respond to the incident (calculated later).
+        station (PoliceStation): The police station responsible for the incident (default: None).
+        assigned_officer (Officer): The officer assigned to the incident (default: None). 
+        travel_time (float): The estimated travel time in seconds for the officer to reach the incident (default: None).
+        resolution_time (float): The estimated time in seconds to resolve the incident after arrival (default: None).
         isr (str): The Incident Serial Reference (ISR) (default: "PENDING").
     """
     priority: IncidentType
-    location: tuple  # (latitude, longitude)
-    report_time: datetime.datetime  # In minutes since simulation start
+    location: tuple
+    report_time: datetime.datetime
     status: IncidentStatus = IncidentStatus.REPORTED
-    response_time: datetime.timedelta = field(init=False, default=None)
+    station: PoliceStation = field(default=None)   
+    assigned_officer: Officer = field(default=None)  
+    travel_time: float = field(default=None)
+    resolution_time: float = field(default=None)
     isr: str = field(init=False, default="PENDING")
 
 @dataclass
@@ -509,9 +515,12 @@ def main_simulation_loop(fcr: FCR, total_time: datetime.timedelta, timestep: dat
         # 3. Assign reported incidents from the backlog
         while fcr.incident_backlog and any(officer.status == OfficerStatus.AVAILABLE_AT_STATION.value for station in fcr.stations for officer in station.officers):
             incident = fcr.incident_backlog.pop(0)  # Get the highest priority incident
-            
-            for station in fcr.determine_station_priority(incident):
-                available_officers = fcr.get_available_officers(station)
+
+            # Find the responsible station for the incident
+            responsible_station = fcr.find_responsible_station(Point(incident.location))
+
+            if responsible_station:
+                available_officers = fcr.get_available_officers(responsible_station) 
                 if available_officers:
                     assigned_officer = available_officers[0]
                     assigned_officer.status = OfficerStatus.ATTENDING_INCIDENT.value
@@ -522,8 +531,11 @@ def main_simulation_loop(fcr: FCR, total_time: datetime.timedelta, timestep: dat
                     # 4. Calculate and store travel time (You'll implement this in travel_time_calc.py)
                     # travel_time = calculate_travel_time(assigned_officer.current_location, incident.location)
                     # incident.travel_time = travel_time[1]  # Assuming the second element is the duration in seconds
-                    
-                    break  # Exit the loop after assigning to an officer
+                else:
+                    # No available officers at the responsible station, so don't remove from backlog yet
+                    fcr.incident_backlog.insert(0, incident)  # Re-insert at the beginning
+                    break  # Exit the inner loop and try the next incident
+
 
         # 5. Update incidents being attended and resolve completed incidents
         for incident in incidents_attended:
