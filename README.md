@@ -74,6 +74,7 @@ This Python project simulates police responses to incidents using an agent-based
 ## Planned Features
 
 - [ ] Core simulation logic loop, simulating the "FCR" (dispatcher) class behaviour.
+- [ ] Implement police shift pattern alterations, flat file loading for police station / shift numbers / shift patterns.
 - [ ] Implement patrol logic beyond return to base.
 - [ ] Add user-controllable or stochastic "not ready time" to benchmark to reality.
 - [ ] Implement dynamic events (e.g., traffic accidents, major incidents).

@@ -182,6 +182,17 @@ class OfficerStatus(Enum):
 
 @dataclass
 class Incident:
+    """
+    Represents an incident that requires police attention.
+
+    Attributes:
+        priority (IncidentType): The priority level of the incident.
+        location (tuple): The geographic location of the incident (latitude, longitude).
+        report_time (datetime.datetime): The time the incident was reported.
+        status (IncidentStatus): The current status of the incident (default: REPORTED).
+        response_time (datetime.timedelta): The time it took for officers to respond to the incident (calculated later).
+        isr (str): The Incident Serial Reference (ISR) (default: "PENDING").
+    """
     priority: IncidentType
     location: tuple  # (latitude, longitude)
     report_time: datetime.datetime  # In minutes since simulation start
@@ -367,7 +378,22 @@ class FCR:
         return None
     
     def get_unattended_incidents(self) -> List[Incident]:
-        return [incident for incident in self.incidents if incident.status != IncidentStatus.ATTENDED]
+        """
+        Returns a list of reported incidents (excluding en-route and attended).
+
+        Returns:
+            List[Incident]: A list of reported incidents.
+        """
+        return [incident for incident in self.incidents if incident.status == IncidentStatus.REPORTED]
+
+    def get_all_unresolved_incidents(self) -> List[Incident]:
+        """
+        Returns a list of all unresolved incidents (reported and en-route).
+
+        Returns:
+            List[Incident]: A list of all unresolved incidents.
+        """
+        return [incident for incident in self.incidents if incident.status != IncidentStatus.ATTENDED and incident.status != IncidentStatus.RESOLVED]
 
     def sort_by_priority_and_time(self, incidents: List[Incident]) -> List[Incident]:
         """Sorts incidents by priority (descending) and then by time of occurrence (ascending)."""
@@ -452,3 +478,74 @@ if __name__ == "__main__":
 
     # Set up police stations
 
+# First stab at simulation logic:
+
+def main_simulation_loop(fcr: FCR, total_time: datetime.timedelta, timestep: datetime.timedelta, start_time: datetime.datetime):
+    """
+    Runs the main simulation loop for the specified duration.
+
+    Args:
+        fcr (FCR): The Force Control Room object managing incidents and officers.
+        total_time (datetime.timedelta): The total duration of the simulation.
+        timestep (datetime.timedelta): The time interval between each simulation step.
+        start_time (datetime.datetime): The starting datetime of the simulation.
+    """
+
+    current_time = start_time
+    end_time = start_time + total_time
+    incidents_attended = []
+    incident_counter = 1
+
+    while current_time < end_time:
+        # 1. Generate new incidents (You'll implement this in another file)
+        # new_incidents = generate_incidents(current_time, timestep)  
+
+        # 2. Add new incidents to the backlog and sort
+        # for incident in new_incidents:
+        #     incident.id = incident_counter
+        #     fcr.add_incident(incident)
+        #     incident_counter += 1
+
+        # 3. Assign reported incidents from the backlog
+        while fcr.incident_backlog and any(officer.status == OfficerStatus.AVAILABLE_AT_STATION.value for station in fcr.stations for officer in station.officers):
+            incident = fcr.incident_backlog.pop(0)  # Get the highest priority incident
+            
+            for station in fcr.determine_station_priority(incident):
+                available_officers = fcr.get_available_officers(station)
+                if available_officers:
+                    assigned_officer = available_officers[0]
+                    assigned_officer.status = OfficerStatus.ATTENDING_INCIDENT.value
+                    assigned_officer.assigned_incident = incident
+                    incident.status = IncidentStatus.EN_ROUTE
+                    incidents_attended.append(incident)
+                    
+                    # 4. Calculate and store travel time (You'll implement this in travel_time_calc.py)
+                    # travel_time = calculate_travel_time(assigned_officer.current_location, incident.location)
+                    # incident.travel_time = travel_time[1]  # Assuming the second element is the duration in seconds
+                    
+                    break  # Exit the loop after assigning to an officer
+
+        # 5. Update incidents being attended and resolve completed incidents
+        for incident in incidents_attended:
+            # incident.travel_time -= timestep.total_seconds()
+            if incident.status == IncidentStatus.EN_ROUTE and incident.travel_time <= 0:
+                incident.status = IncidentStatus.ATTENDED
+                incident.travel_time = None  # Reset travel time
+                # incident.resolution_time = numpy.random.uniform(15 * 60, 30 * 60)  # 15-30 minutes in seconds
+
+            if incident.status == IncidentStatus.ATTENDED:
+                incident.resolution_time -= timestep.total_seconds()
+                if incident.resolution_time <= 0:
+                    incident.status = IncidentStatus.RESOLVED
+                    assigned_officer = next(officer for station in fcr.stations for officer in station.officers if officer.assigned_incident == incident)
+                    assigned_officer.status = OfficerStatus.AVAILABLE_AT_STATION.value
+                    assigned_officer.assigned_incident = None
+                    incidents_attended.remove(incident)
+                    
+        
+        # Logging
+        logging.info(f"Timestep: {current_time}, Reported: {len(fcr.incident_backlog)}, "
+                     f"En Route/Attending: {len(incidents_attended)}, Resolved: {len([inc for inc in fcr.incidents if inc.status == IncidentStatus.RESOLVED])}")
+
+        # Move to the next time step
+        current_time += timestep
