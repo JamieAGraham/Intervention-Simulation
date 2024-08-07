@@ -49,8 +49,8 @@ class OfficerStatus(Enum):
     ON_PATROL = ("02", "On patrol")
     AVAILABLE_AT_STATION = ("03", "Available at station")
     REFRESHMENTS = ("04", "Refreshments")
-    ATTENDING_INCIDENT = ("05", "Attending incident (set by STORM)")
-    ARRIVED_AT_SCENE = ("06", "Arrived at scene (set by STORM)")
+    ATTENDING_INCIDENT = ("05", "Attending incident")
+    ARRIVED_AT_SCENE = ("06", "Arrived at scene")
     COMMITTED_BUT_DEPLOYABLE = ("07", "Committed but deployable (statement, paperwork etc)")
     COMMITTED_NOT_DEPLOYABLE = ("08", "Committed and NOT deployable (custody or interviewing)")
     PRISONER_ESCORT = ("09", "Prisoner escort")
@@ -197,7 +197,38 @@ class FCR:
         date_str = incident.report_time.strftime("%Y%m%d")  
         time_str = incident.report_time.strftime("%H%M")
         incident_logger.info(f"Incident created ISR HC-{date_str}-{incident.id:04d} at {date_str}-{time_str}")
-        return f"HC-{date_str}-{incident.id:04d}"  # Format: YYYYMMDD/HHMM/0001
+        return f"Inc-{date_str}-{incident.id:04d}"  # Format: YYYYMMDD/HHMM/0001
+    
+    def determine_station_priority(self, incident: Incident) -> List[PoliceStation]:
+        """Determine the order in which to try assigning the incident to stations."""
+        def priority_key(station: PoliceStation):
+            distance = station.location.distance(incident.location)
+            available_officers = len(self.get_available_officers(station))
+            workload = len([inc for inc in self.incidents if inc.station == station])  # This is a simplification, adjust as needed
+            return distance, -available_officers, workload  # Prioritize: closer, more available, less workload
+        
+        candidate_stations = [s for s in self.stations if s.response_area.contains(incident.location)]
+        return sorted(candidate_stations, key=priority_key)
+    
+    def assign_officer_to_incident(self, incident: Incident, station: PoliceStation) -> bool:
+        """Tries to assign an available officer from the given station to the incident."""
+        available_officers = self.get_available_officers(station)
+        if not available_officers:
+            return False
+       
+        closest_officer = min(available_officers, key=lambda officer: officer.current_location.distance(incident.location))
+
+        closest_officer.assigned_incident = incident
+        incident.status = IncidentStatus.EN_ROUTE
+        incident.station = station
+        return True
+
+    def assign_incident(self, incident: Incident):
+        station_priority = self.determine_station_priority(incident)
+        for station in station_priority:
+            if self.assign_officer_to_incident(incident, station):
+                return  # Assignment successful
+
 
 if __name__ == "__main__":
 
@@ -223,3 +254,11 @@ if __name__ == "__main__":
     fcr_logger = logging.getLogger("FCR")
     station_logger = logging.getLogger("PoliceStation")
     incident_logger = logging.getLogger("Incident")
+
+    # Arbitrary start time 2024-01-01 09:00:00
+    sim_start_time = datetime.datetime(2024,1,1,9,0,0)
+
+    timestep = datetime.timedelta(minutes=5)
+
+    # Set up police stations
+
