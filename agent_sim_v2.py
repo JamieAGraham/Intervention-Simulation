@@ -7,24 +7,55 @@ from enum import Enum
 from typing import List
 from shapely.geometry import Point, Polygon
 
+# Incident Type Enumeration: Defines categories for incident priority.
 class IncidentType(Enum):
+    """
+    Represents the priority level of an incident.
+
+    Members:
+        IMMEDIATE (1): Highest priority, requires an immediate response.
+        PROMPT (2): High priority, requires a prompt response.
+        SCHEDULED (3): Pre-planned or scheduled incident.
+        APPOINTMENT (4): Incident scheduled as an appointment.
+        NO_RESPONSE (5): Incident that does not require a police response.
+    """
     IMMEDIATE = 1
     PROMPT = 2
     SCHEDULED = 3
     APPOINTMENT = 4
     NO_RESPONSE = 5
 
+# Incident Status Enumeration: Tracks the progress of an incident.
 class IncidentStatus(Enum):
+    """
+    Represents the current status of an incident.
+
+    Members:
+        REPORTED (1): The incident has been reported.
+        EN_ROUTE (2): Officers are en route to the incident.
+        ATTENDED (3): Officers have arrived at the incident scene.
+        RESOLVED (4): The incident has been resolved.
+    """
     REPORTED = 1
     EN_ROUTE = 2
     ATTENDED = 3
     RESOLVED = 4
 
+# Shift Type Enumeration: Defines different work shifts for officers.
 class ShiftType(Enum):
+    """
+    Represents the type of shift an officer is working.
+
+    Members:
+        EARLY ("early", 7, 16): Early shift (7 AM to 4 PM).
+        LATE ("late", 15, 0): Late shift (3 PM to 12 AM).
+        NIGHT ("night", 22, 7): Night shift (10 PM to 7 AM).
+    """
     EARLY = ("early", 7, 16)
     LATE = ("late", 15, 0)
     NIGHT = ("night", 22, 7)
 
+    # Constructor for ShiftType to store shift name, start, and end hours
     def __init__(self, name, start_hour, end_hour):
         self.name = name
         self.start_hour = start_hour
@@ -32,6 +63,16 @@ class ShiftType(Enum):
 
 @dataclass
 class Shift:
+    """
+    Represents a specific work shift for a police officer.
+
+    Attributes:
+        type (ShiftType): The type of shift (e.g., EARLY, LATE, NIGHT).
+
+    Properties:
+        start_time (datetime.time): The start time of the shift.
+        end_time (datetime.time): The end time of the shift.
+    """
     type: ShiftType
 
     @property
@@ -44,6 +85,47 @@ class Shift:
     
 
 class OfficerStatus(Enum):
+    """
+    Represents the detailed status of a police officer.
+
+    Members:
+        URGENT_ASSISTANCE ("00", "Urgent assistance"): 
+            Officer requires immediate assistance.
+        ON_DUTY ("01", "On duty"): 
+            Officer is on duty and available for assignment.
+        ON_PATROL ("02", "On patrol"): 
+            Officer is actively patrolling their assigned area.
+        AVAILABLE_AT_STATION ("03", "Available at station"): 
+            Officer is at the station and available for deployment.
+        REFRESHMENTS ("04", "Refreshments"): 
+            Officer is taking a break for refreshments.
+        ATTENDING_INCIDENT ("05", "Attending incident"): 
+            Officer is en route to or at the scene of an incident.
+        ARRIVED_AT_SCENE ("06", "Arrived at scene"): 
+            Officer has arrived at the scene of an incident.
+        COMMITTED_BUT_DEPLOYABLE ("07", "Committed but deployable (statement, paperwork etc)"): 
+            Officer is engaged in an activity but can be reassigned if necessary (e.g., taking a statement).
+        COMMITTED_NOT_DEPLOYABLE ("08", "Committed and NOT deployable (custody or interviewing)"): 
+            Officer is engaged in an activity that prevents them from being reassigned (e.g., in custody).
+        PRISONER_ESCORT ("09", "Prisoner escort"): 
+            Officer is escorting a prisoner.
+        AT_COURT ("10", "At court"): 
+            Officer is attending court.
+        OFF_DUTY ("11", "Off duty"): 
+            Officer is off duty and unavailable for assignment.
+        CONFIDENTIAL_MESSAGE ("12", "Confidential message"):
+            Officer is receiving a confidential message.
+        RADIO_ON ("99", "Radio on"): 
+            Officer's radio is turned on (general status).
+
+    Methods:
+        __init__(self, code, description):
+            Initializes an OfficerStatus member with a code and description.
+        __str__(self) -> str:
+            Returns a string representation of the officer status in the format "code - description" (e.g., "01 - On duty").
+        from_code(cls, code: str) -> OfficerStatus:
+            Class method that returns the OfficerStatus member associated with the given code. Raises a ValueError if the code is invalid.
+    """
     URGENT_ASSISTANCE = ("00", "Urgent assistance")
     ON_DUTY = ("01", "On duty")
     ON_PATROL = ("02", "On patrol")
@@ -60,14 +142,39 @@ class OfficerStatus(Enum):
     RADIO_ON = ("99", "Radio on")
 
     def __init__(self, code, description):
+        """
+        Initializes an OfficerStatus member.
+
+        Args:
+            code (str): The two-digit code representing the status.
+            description (str): A human-readable description of the status.
+        """
         self.code = code
         self.description = description
 
     def __str__(self):
+        """
+        Returns a string representation of the officer status.
+
+        Returns:
+            str: A string in the format "code - description" (e.g., "01 - On duty").
+        """
         return f"{self.code} - {self.description}"
 
     @classmethod
     def from_code(cls, code):
+        """
+        Retrieves the OfficerStatus member associated with the given code.
+
+        Args:
+            code (str): The two-digit code representing the status.
+
+        Returns:
+            OfficerStatus: The corresponding OfficerStatus member.
+
+        Raises:
+            ValueError: If the provided code is invalid.
+        """
         for status in cls:
             if status.code == code:
                 return status
@@ -84,6 +191,25 @@ class Incident:
 
 @dataclass
 class Officer:
+    """
+    Represents a police officer in the simulation.
+
+    Attributes:
+        id (int): Unique identifier for the officer.
+        station (PoliceStation): The station the officer is assigned to.
+        status (str): The current status of the officer (default: "available").
+        current_location (tuple): The officer's current location (latitude, longitude).
+        assigned_incident (Incident): The incident the officer is currently responding to (default: None).
+        travel_route (list): The list of locations the officer will visit to reach their destination (default: empty list).
+        shift (Shift): The officer's assigned work shift.
+        end_time (datetime.datetime): The calculated end time of the officer's shift.
+    
+    Methods:
+        __post_init__(self, simulation_time: datetime.datetime): 
+            Calculates the officer's actual shift end time based on the simulation start time and shift start time.
+        is_on_duty(self, simulation_time: datetime.datetime) -> bool:
+            Checks if the officer is currently on duty based on the simulation time and their shift.
+    """
     id: int
     station: object  # Reference to the PoliceStation object
     status: str = "available"
@@ -106,6 +232,22 @@ class Officer:
 
 
 class PoliceStation:
+    """
+    Represents a police station with a location, officers, and a response area.
+
+    Attributes:
+        location (Point): Geographic location of the station (latitude, longitude).
+        officers (list): List of officers assigned to the station.
+        name (str): Name of the police station.
+        id (int): Unique identifier for the station.
+        response_area (Polygon): Geographic area that the station is responsible for.
+
+    Methods:
+        add_officer(self, officer: Officer):
+            Adds an officer to the station.
+        get_officers(self) -> List[Officer]:
+            Returns a list of all officers assigned to the station.
+    """
     def __init__(self, location: tuple, name: str, id: int, response_area: Polygon):
         self.location = Point(location)
         self.officers = []
@@ -126,6 +268,54 @@ class PoliceStation:
 
 @dataclass
 class FCR:
+    """
+    Force Control Room: Central hub for managing incidents and police resources.
+
+    Attributes:
+        stations (List[PoliceStation]): List of police stations under FCR control.
+        incidents (List[Incident]): List of active incidents.
+
+    Methods:
+        add_incident(self, incident: Incident):
+            Adds a new incident to the FCR and attempts to assign an officer.
+        
+        find_responsible_station(self, location: Point) -> PoliceStation:
+            Returns the police station responsible for handling an incident at the given location. If no station is found, logs an error.
+
+        get_available_officers(self, station: PoliceStation) -> List[Officer]:
+            Returns a list of available officers from the specified station who are currently on duty.
+
+        find_closest_station(self, location: Point, num_stations=2) -> List[PoliceStation]:
+            Returns a list of the closest police stations (up to num_stations) to the given location, sorted by distance.
+
+        assign_incident(self, incident: Incident):
+            Attempts to assign the given incident to an available officer.
+
+        get_incident_by_id(self, incident_id: int) -> Incident:
+            Returns the incident object with the specified ID, or None if not found.
+
+        get_unattended_incidents(self) -> List[Incident]:
+            Returns a list of all incidents that have not yet been attended to.
+
+        sort_by_priority_and_time(self, incidents: List[Incident]) -> List[Incident]:
+            Sorts a list of incidents by priority (descending) and then by report time (ascending).
+
+        get_highest_priority_incident(self, incidents: List[Incident], current_time: datetime.datetime) -> Incident:
+            Returns the highest priority unattended incident from the list, considering the time since the incident was reported.
+
+        gen_isr(self, incident: Incident) -> str:
+            Generates a unique Incident Serial Reference (ISR) for the incident.
+
+        determine_station_priority(self, incident: Incident) -> List[PoliceStation]:
+            Determines the order in which to try assigning the incident to stations based on distance, available officers, and workload.
+
+        assign_officer_to_incident(self, incident: Incident, station: PoliceStation) -> bool:
+            Assigns an available officer from the given station to the incident, returns True if successful, False otherwise.
+
+        assign_incident(self, incident: Incident):
+            Attempts to assign the incident to the most appropriate station based on a priority order.
+    """
+
     stations: List[PoliceStation]
     incidents: List[Incident] = field(default_factory=list)
 
