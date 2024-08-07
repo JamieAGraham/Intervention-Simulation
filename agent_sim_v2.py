@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List
 from shapely.geometry import Point, Polygon
+from __future__ import annotations
 
 # Incident Type Enumeration: Defines categories for incident priority.
 class IncidentType(Enum):
@@ -200,8 +201,9 @@ class Incident:
     location: tuple
     report_time: datetime.datetime
     status: IncidentStatus = IncidentStatus.REPORTED
-    station: PoliceStation = field(default=None)   
-    assigned_officer: Officer = field(default=None)  
+    # Forward references here, so string literals for now and importing annotations from __future__
+    station: 'PoliceStation' = field(default=None)  
+    assigned_officer: 'Officer' = field(default=None)  
     travel_time: float = field(default=None)
     resolution_time: float = field(default=None)
     isr: str = field(init=False, default="PENDING")
