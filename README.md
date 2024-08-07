@@ -35,10 +35,10 @@ This Python project simulates police responses to incidents using an agent-based
     pip install pandas numpy scipy shapely geopandas
     ```
 2.  **Acquire Data:**
-    *   **Incident Frequencies:** Obtain a CSV file containing incident frequencies by weekday and hour (e.g., "incident_frequencies.csv").
-    *   **Incident Locations:** Acquire a shapefile containing historical incident locations and crime types (e.g., "incident_locations.shp").
-    *   **Border Shapefile (Optional):** If you want to restrict incident locations within a specific area, obtain a corresponding shapefile (e.g., "boundary.shp").
-    *   **OSRM Data:** Prepare pre-processed OSRM data with sampled points and travel times (e.g., "sampled_points.shp" and "travel_times_distances.csv").
+    *   **Incident Frequencies:** Create CSV file containing incident frequencies by weekday and hour (e.g., "incident_frequencies.csv"). Optionally create CSVs for incident frequencies by priority (one per priority).
+    *   **Incident Locations:** Create a shapefile containing historical incident locations and crime types (e.g., "incident_locations.shp").
+    *   **Border Shapefile (Optional):** If you want to restrict incident locations within a specific area, obtain a corresponding shapefile (e.g., "boundary.shp"). This may be the boundary of a police force area, for example.
+    *   **OSRM Data:** Prepare pre-processed OSRM data with sampled points and travel times (e.g., "sampled_points.shp" and "travel_times_distances.csv"). Support for this is provided in "OSRM_example.py" with expected format and example generation.
 
 3.  **Place Data in Project Directory:**
     *   Place the data files in the project's main directory or specify their paths in the code where applicable.
